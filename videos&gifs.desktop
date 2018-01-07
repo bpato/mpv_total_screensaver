@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Videos&Gifs
+Exec=/usr/lib/xscreensaver/mpv_total_screensaver "$HOME"/Videos/ScreenSaver/
+TryExec=/usr/lib/xscreensaver/mpv_total_screensaver "$HOME"/Videos/ScreenSaver/
+Comment=Reproduce videos y gifs como salvapantallas con mpv.
+StartupNotify=false
+Terminal=false
+Type=Application
+Categories=Screensaver;
+OnlyShowIn=MATE;
+Name[en_GB]=Videos&Gifs.desktop

@@ -1,0 +1,110 @@
+#!/bin/bash
+#: Title	: mpv_total_screensaver 
+#: Date		:
+#: Author	: "bpato"
+#: Version	:
+#: Description	:
+#: Options	:
+
+export LC_NUMERIC="en_GB.UTF-8"
+#export XSCREENSAVER_WINDOW=""
+
+function run_mpv() {
+    # Ejecuta mpv
+
+    # VIDEO="$1"
+    # TA="$2"
+    # TB="$3"
+
+    # Calcula el ratio de la pantalla
+    AR=$(xrandr -q | grep -Po 'current\s*\d+\s*x\s*\d+' | awk '{print $2/$4}')
+    
+    exec mpv --really-quiet\
+             --no-osd-bar \
+             --no-audio \
+             --vo=vdpau \
+             --hwdec=vdpau \
+             --fs \
+             --video-aspect="$AR" \
+             --start="$2" \
+             --ab-loop-a="$2" \
+             --ab-loop-b="$3" \
+             --no-stop-screensaver \
+             --wid="$XSCREENSAVER_WINDOW" \
+             "$1"
+}
+
+
+function get_rand() {
+    # Genera un numero aleatorio
+    # $1 = Maximo
+    # $2 = Minimo
+    R=$(awk -v sem="$[$(date +"%s")/$RANDOM]" '{srand(sem);printf "%f", rand();}' < <(echo))
+    printf "%.0f" $(echo "$R*($1-$2)+$2" | bc -l)
+}
+
+function formating_time(){
+    # Formatea un tiempo en segundos para que se entienda
+    # $1 = Tiempo en segundos
+    printf "%02d:%02d" $[$1/60] $[$1%60]
+}
+
+function bucle_time() {
+    # $1 = Archivo de video
+    
+    # Obtenemos la duración del video redondeando a segundos
+    DURATION=$(exiftool -s -S -n -Duration "$1")
+    DURATION=${DURATION%.*}
+    
+    if [ $DURATION -gt 60 ];then
+        # Obtenemos un la posición aleatoria final del bucle
+        TB=$(get_rand $DURATION 0)
+    
+        # Dependiendo de la posición TB obtenemos TA
+        [[ $TB -gt 60 ]] && TA=$[TB-60] || TA=0
+    else
+        TA=0
+        TB=$(exiftool -s -S -n -Duration "$1")
+    fi
+}
+
+##################################[ MAIN ]######################################
+
+if [ -f "$1" ];then
+    # Si el parametro introducido es un archivo
+    FILE="$1"
+    
+    if [ $# -eq 3 ];then
+        # Si indicamos un tiempo especifico.
+        TA="$2"
+        TB="$3"
+    else
+        bucle_time "$FILE"
+    fi
+    
+    run_mpv "$FILE" "$TA" "$TB"
+    
+elif [ -d "$1" ];then 
+    # Si el parametro introducido es un directorio
+    FOLDER="$1"
+    while read FILE
+    do
+    # Pasamos al while el resultado de find con todos los archivos junto su mimetype
+        TYPE=$(printf "%s" "${FILE##* }")
+            
+        if [[ "$TYPE" == "image/gif" ]] || [[ ${TYPE%/*} == "video" ]];then
+            # Obtenemos unicamente los videos y gifs
+            FILES+=$(printf "%s;" "${FILE%: *}")
+        fi
+    done < <(find -L "$FOLDER" -type f -exec file -L --mime-type '{}' \;)
+    
+    # Escogemos un video aleatorio de entre todos
+    FILE=$(printf "%s" "$FILES" | awk -v semi="$(date +"%s")" -F\; 'BEGIN{srand(semi);} {nun=(rand()*(NF-2)+1);print $int(nun)}')
+    
+    bucle_time "$FILE"
+    
+    run_mpv "$FILE" "$TA" "$TB"
+fi
+
+
+
